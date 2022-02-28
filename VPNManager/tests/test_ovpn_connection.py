@@ -5,7 +5,12 @@ from VPNManager.VPNConnection import VPNState
 
 @pytest.fixture
 def test_vpn_connection():
-    yield OpenVPNConnection("test_connection", "/home/nathanrose/ovpn/desk.ovpn")
+    vpn_connection = OpenVPNConnection("test_connection", "/home/nathanrose/ovpn/desk.ovpn")
+    yield vpn_connection
+    try:
+        vpn_connection.close()
+    except ValueError:
+        pass
 
     
 def test_is_this_state_present_no_sessions(test_vpn_connection):
@@ -43,3 +48,21 @@ Session name: 99.170.114.34
         ) ==
         VPNState.OPEN
     )
+    
+def test_generate_ovpn_command(test_vpn_connection):
+    assert (
+        test_vpn_connection._generate_ovpn_open_command() ==
+        ["openvpn3", "session-start", "-c", "/home/nathanrose/ovpn/desk.ovpn"]
+    )
+
+
+@pytest.mark.external
+def test_open_close_with_password(test_vpn_connection):
+    password = ""
+    with open("VPNManager/tests/test_password.txt") as pswd_file:
+        password = pswd_file.read()
+    test_vpn_connection.open(password=password)
+    assert VPNState.OPEN == test_vpn_connection._check_state()
+    test_vpn_connection.close()
+    assert VPNState.OPEN == test_vpn_connection._check_state()
+    
